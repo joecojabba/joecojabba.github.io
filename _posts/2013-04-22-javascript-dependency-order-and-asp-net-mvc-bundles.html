@@ -1,0 +1,172 @@
+---
+layout: post
+title: Javascript dependency order and ASP.NET MVC Bundles
+categories:
+- Software Development
+tags:
+- C#
+- software development
+- web optimization
+status: publish
+type: post
+published: true
+meta:
+  _publicize_pending: '1'
+author: 
+---
+<p>Inevitably you find yourself working on contract on a "simple" project that has become increasingly complex, growing from a few javascript files to hundreds.</p>
+<h4 style="padding-left:30px;">***side note***</h4>
+<p style="padding-left:30px;">This post is targeted at solely .NET environments. Yes there is AMD with <a href="http://requirejs.org/">requirejs</a> and <a href="http://wiki.commonjs.org/wiki/Modules">commonjs </a>and the various module loaders and build tools, but sometimes not every tool is available and find yourself working within a <del>stubborn </del>locked down environment operated by the <a href="http://en.wikipedia.org/wiki/Bastard_Operator_From_Hell" target="_blank">BOFH</a>, limiting whats available for the job.</p>
+<h2>tl;dr;</h2>
+<p><span style="text-decoration:underline;">The problem</span>: "I am using System.Web.Optimization but I want my javascript in my bundle ordered by dependency!!!"</p>
+<p><span style="text-decoration:underline;">The solution</span>: Custom IBundleOrderer implementation with regular expressions and a topological sort.</p>
+<h2>Continuing on</h2>
+<p>With ASP.NET MVC 4 (and 3)  you should be taking advantage of System.Web.Optimization and <a href="http://www.asp.net/mvc/tutorials/mvc-4/bundling-and-minification">bundle and minify</a> those scripts to keep your page times snappy.</p>
+<p>When creating your bundle you can include files individually or by folder using a wildcard.</p>
+<p>Adding files individually allows you to control the order that files appear in the bundle, but for your massive project who wants to maintain that through refactors and new features.</p>
+<p>Adding via wildcard is so much simpler but the files are added alphabetically which hurts when abc.js refers to components in xyz.js.</p>
+<p>So to control the order of the wildcard bundle you could create a custom IBundleOrderer implementation and specify which files should appear first, which can lead you back towards the maintenance problem mentioned above.</p>
+<h2>JavascriptDependencyOrderer: A smarter IBundleOrderer</h2>
+<p>Our implementation will apply a <a href="http://en.wikipedia.org/wiki/Topological_sorting">topological sorting algorithm</a> to the list of files supplied by the bundle, ...err... sorting the files according to their dependencies.</p>
+<p>To use the topsort however we need to create a adjacency graph describing the files and their relationships.</p>
+<p>Each vertex in the graph is represented by the individual file names provided to the bundle.</p>
+<p>Each edge is represented by the file name of each file's dependency.</p>
+<h3>But how do we discover the dependencies??</h3>
+<p>First we need to add a little bit of ceremony to our javascript files and list the required dependencies.</p>
+<p>Here we borrow some similar syntax used by client side module loaders using a "require" statement which is wrapped in some comments as to not give us any client script errors.</p>
+<p>So an example ModelA.js might be....</p>
+<p>[sourcecode language="javascript"]<br />
+/* require('ModelB.js') */</p>
+<p>(function (mynamespace) {<br />
+ var mynamespace.ModelA = mynamespace.ModelB.extend({</p>
+<p> });<br />
+} (window.myuni = window.myuni || {} ));</p>
+<p>[/sourcecode]</p>
+<p>I like the require statement because if in the future I ever could use a more appropriate tool, part of the work is kinda already done. But you could use any pattern you desired.</p>
+<p>The commented section is also removed by the bundle when it is minified.</p>
+<p>Listing the dependency here makes the it more explicit on what components this bit of code is using and frees us from having to manage not only this file's dependencies but also how their order may impact the dependency order on other files.</p>
+<p>Next, a regular expression is then used as each file is processed to grab the dependencies from the require statement and build up the graph edges.</p>
+<h3>What about 3rd party libraries and their dependencies?</h3>
+<p>A good example is Backbone.js having a dependency on underscore.js</p>
+<p>Not wanting to modify the source of these external libraries with our extra "require" ceremony, we add some extra logic to our <a href="http://msdn.microsoft.com/en-us/library/system.web.optimization.ibundleorderer.aspx">IBundleOrderer </a>implementation to explicitly add these files first and in the order they are listed.</p>
+<p>These explicit items are then excluded from the topological sort as they are assumed to be already added.</p>
+<h3>Building the topological sort</h3>
+<p>I chose to use the <a href="http://quickgraph.codeplex.com/">QuickGraph</a> nuget package but you can also <a href="http://tawani.blogspot.com.au/2009/02/topological-sorting-and-cyclic.html">roll your own</a> for finer control over performance, error handling, and debugging.</p>
+<p>By using the QuickGraph package some extra guard clauses and exception handling was needed to better identify potential sources of error.</p>
+<h3>Putting it together</h3>
+<p>[sourcecode language="csharp"]</p>
+<p>public class JavascriptDependencyOrderer : IBundleOrderer<br />
+{<br />
+   private readonly string dependencyRegex;<br />
+   private readonly List&lt;Field&gt; fields;</p>
+<p>   public List&lt;string&gt; ExplicitOrder { get; set; }</p>
+<p>   public JavascriptDependencyOrderer()<br />
+     : this(@&quot;(?&lt;=require\(['\&quot;&quot;]).*?(?=['\&quot;&quot;]\))&quot;)<br />
+   {}</p>
+<p>   public JavascriptDependencyOrderer(string dependencyRegex)<br />
+   {<br />
+      this.dependencyRegex = dependencyRegex;<br />
+      fields = new List&lt;Field&gt;();<br />
+      ExplicitOrder = new List&lt;string&gt;();<br />
+   }</p>
+<p>   #region IBundleOrderer Members<br />
+   public IEnumerable&lt;FileInfo&gt; OrderFiles(BundleContext context, IEnumerable&lt;FileInfo&gt; files)<br />
+   {<br />
+     FindDependecies(files);<br />
+     List&lt;FileInfo&gt; result = ExplicitOrder<br />
+                              .Select(fileName =&gt; files.FirstOrDefault(x =&gt; x.Name == fileName))<br />
+                              .Where(f =&gt; f != null).ToList();<br />
+     result.AddRange(BuildAndSortDependencies()<br />
+                        .Select(sortedVertex =&gt; files.FirstOrDefault(x =&gt; x.Name == sortedVertex)));</p>
+<p>     return result;<br />
+   }<br />
+   #endregion</p>
+<p>    private void FindDependecies(IEnumerable&lt;FileInfo&gt; files)<br />
+    {<br />
+       var regex = new Regex(dependencyRegex);<br />
+       foreach (FileInfo fileInfo in files)<br />
+       {<br />
+          if (!ExplicitOrder.Contains(fileInfo.Name))<br />
+          {<br />
+             var file = new StreamReader(fileInfo.OpenRead());<br />
+             MatchCollection matches = regex.Matches(file.ReadToEnd());</p>
+<p>             fields.Add(new Field<br />
+             {<br />
+                Name = fileInfo.Name,<br />
+                DependsOn = matches.OfType&lt;Match&gt;()<br />
+                           .Select(match =&gt;<br />
+                            {<br />
+                                if (files.Any(x =&gt; x.Name == match.Groups[0].Value))<br />
+                                {<br />
+                                   return match.Groups[0].Value;<br />
+                                }<br />
+                                else<br />
+                                {<br />
+                                     throw new Exception(<br />
+                                          string.Format(&quot;Dependency {0} for {1} could not be found in supplied list of files&quot;,<br />
+                                          match.Groups[0].Value,<br />
+                                          fileInfo.Name));<br />
+                                }<br />
+                            }).ToArray()<br />
+             });<br />
+           }<br />
+       }<br />
+    }</p>
+<p>   private IEnumerable&lt;string&gt; BuildAndSortDependencies()<br />
+   {<br />
+      try<br />
+      {<br />
+          var adjacencyGraph = new AdjacencyGraph&lt;string, Edge&lt;string&gt;&gt;();</p>
+<p>          foreach (Field field in fields)<br />
+          {<br />
+              adjacencyGraph.AddVertex(field.Name);<br />
+              foreach (string dependecy in field.DependsOn)<br />
+              {<br />
+                 adjacencyGraph.AddEdge(new Edge&lt;string&gt;(field.Name, dependecy));<br />
+              }<br />
+           }</p>
+<p>           var topSort = new TopologicalSortAlgorithm&lt;string, Edge&lt;string&gt;&gt;(adjacencyGraph);</p>
+<p>           topSort.Compute();<br />
+           return topSort.SortedVertices.Reverse();<br />
+      }<br />
+      catch(NonAcyclicGraphException cyclicException)<br />
+      {<br />
+          throw new Exception(&quot;Circular reference detected while processing javascript dependency order&quot;,cyclicException);<br />
+      }<br />
+      catch(KeyNotFoundException keyNotFoundException)<br />
+      {<br />
+          throw new Exception(&quot;Dependency could not be found. Check that the file names match.&quot;, keyNotFoundException);<br />
+      }<br />
+    }</p>
+<p>   #region Nested type: Field<br />
+    private class Field<br />
+    {<br />
+       public string Name { get; set; }<br />
+       public string[] DependsOn { get; set; }</p>
+<p>       public override string ToString(){ return Name; }<br />
+     }<br />
+     #endregion<br />
+}[/sourcecode]</p>
+<h3>And now we use it</h3>
+<p>Finally we can get our global.asax / bundle config back under control and more maintainable using the wildcard search and our orderer</p>
+<p>[sourcecode language="csharp"]<br />
+// Site Javascript Bundle<br />
+ Bundle bundle = new ScriptBundle(&quot;~/Scripts/site.js&quot;);<br />
+ bundle.Transforms.Add(new JsMinify());<br />
+ bundle.IncludeDirectory(&quot;~/scripts&quot;, &quot;*.js&quot;, true);</p>
+<p> var jsOrder = new JavascriptDependencyOrderer();<br />
+ jsOrder.ExplicitOrder.Add(&quot;jquery-1.8.0.js&quot;);<br />
+ jsOrder.ExplicitOrder.Add(&quot;underscore.js&quot;);<br />
+ jsOrder.ExplicitOrder.Add(&quot;backbone.js&quot;);<br />
+ bundle.Orderer = jsOrder;</p>
+<p>BundleTable.Bundles.Add(bundle);<br />
+[/sourcecode]</p>
+<h2><span style="font-size:1.5em;">Last words...</span></h2>
+<p>There are still a few improvements I would like to make, such as</p>
+<ul>
+<li>allowing the dependencies to be case insensitive</li>
+<li>having the vertex key be more unique by including the part of the path</li>
+<li>or perhaps some type of shim for 3rd party files</li>
+</ul>
+<p>Either way, for our project in our environment its working well and removed some heartache.</p>
+<p>As always comments, criticisms, and corrections are eagerly welcomed.</p>
