@@ -63,54 +63,44 @@ Add these script blocks to your page. The GITKit doco says to add to the HEAD bl
 
 {% highlight html %}
 
-&amp;lt;script type=&amp;quot;text/javascript&amp;quot; src=&amp;quot;https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 
-&amp;lt;script type=&amp;quot;text/javascript&amp;quot; src=&amp;quot;https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js"></script>
 
-&amp;lt;script type=&amp;quot;text/javascript&amp;quot; src=&amp;quot;https://ajax.googleapis.com/ajax/libs/googleapis/0.0.4/googleapis.min.js&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/googleapis/0.0.4/googleapis.min.js"></script>
 
-&amp;lt;script type=&amp;quot;text/javascript&amp;quot; src=&amp;quot;https://ajax.googleapis.com/jsapi&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
-{% endhighlight %}
+<script type="text/javascript" src="https://ajax.googleapis.com/jsapi"></script>
 
+<script type="text/javascript">
 
-````js
+    google.load('identitytoolkit', '1.0', { packages: ['ac'] });
 
-var x = 20;
-
-````
-&amp;lt;script type=&amp;quot;text/javascript&amp;quot;&amp;gt;
-
-    google.load(&amp;quot;identitytoolkit&amp;quot;, &amp;quot;1.0&amp;quot;, { packages: [&amp;quot;ac&amp;quot;] });
-
-&amp;lt;/script&amp;gt;
-
-&amp;lt;script type=&amp;quot;text/javascript&amp;quot;&amp;gt;
 
   $(function () {
 
      window.google.identitytoolkit.setConfig({
 
-       developerKey: &amp;quot;your dev api key goes here&amp;quot;,
+       developerKey: 'your dev api key goes here',
 
-       companyName: &amp;quot;Your company&amp;quot;,
+       companyName: 'Your company',
 
-       callbackUrl: &amp;quot;@string.Format(&amp;quot;https://yoursite.com{0}&amp;quot;,Url.Action(&amp;quot;Callback&amp;quot;,&amp;quot;Account&amp;quot;))&amp;quot;,
+       callbackUrl: '@string.Format('https://yoursite.com{0}',Url.Action('Callback','Account'))',
 
-       userStatusUrl: &amp;quot;@Url.Action(&amp;quot;UserStatus&amp;quot;,&amp;quot;Account&amp;quot;)&amp;quot;, // these can just be partial paths
+       userStatusUrl: '@Url.Action('UserStatus','Account')', // these can just be partial paths
 
-       loginUrl: &amp;quot;@Url.Action(&amp;quot;LogOn&amp;quot;,&amp;quot;Account&amp;quot;)&amp;quot;,
+       loginUrl: '@Url.Action('LogOn','Account')',
 
-       signupUrl: &amp;quot;@Url.Action(&amp;quot;Register&amp;quot;,&amp;quot;Account&amp;quot;)&amp;quot;,
+       signupUrl: '@Url.Action('Register','Account')',
 
-       homeUrl: &amp;quot;@Url.Action(&amp;quot;Index&amp;quot;,&amp;quot;Home&amp;quot;)&amp;quot;,
+       homeUrl: '@Url.Action('Index','Home')',
 
-       logoutUrl: &amp;quot;@Url.Action(&amp;quot;LogOff&amp;quot;,&amp;quot;Account&amp;quot;)&amp;quot;,
+       logoutUrl: '@Url.Action('LogOff','Account')',
 
-       realm: &amp;quot;&amp;quot;, // optional
+       realm: '', // optional
 
-       language: &amp;quot;en&amp;quot;,
+       language: 'en',
 
-       idps: [&amp;quot;Gmail&amp;quot;, &amp;quot;AOL&amp;quot;, &amp;quot;Hotmail&amp;quot;, &amp;quot;Yahoo&amp;quot;],
+       idps: ['Gmail', 'AOL', 'Hotmail', 'Yahoo'],
 
        tryFederatedFirst: true,
 
@@ -122,29 +112,31 @@ var x = 20;
 
   });
 
-&amp;lt;/script&amp;gt;
+</script>
 
-[/sourcecode]
 
-*   Any version &amp;gt;= jquery 1.4.2 can be used
-*   Any version &amp;gt;= jquery-ui 1.8.2 can be used
+{% endhighlight %}
+
+
+*   Any version >= jquery 1.4.2 can be used
+*   Any version >= jquery-ui 1.8.2 can be used
 *   The callback url **MUST** be a full url. Any of the others can be partial paths
 
 ##### Step 2 - change _LogOnPartial
 
 Replace the existing markup with
 
-[sourcecode language="html"]
+````aspx-cs
 
 @if(Request.IsAuthenticated) {
 
-    &amp;lt;text&amp;gt;Welcome&amp;lt;/text&amp;gt;
+    <text>Welcome</text>
 
 }
 
-&amp;lt;div id=&amp;quot;navbar&amp;quot;&amp;gt;&amp;lt;/div&amp;gt;
+<div id="navbar"></div>
 
-[/sourcecode]
+````
 
 You can have a quick test now if you like and you should see the sign in widget in the top right corner.
 
@@ -160,17 +152,17 @@ Once you have the have assertion, you can check to see if the user should be log
 
 Here is my example callback action 
 
-[sourcecode language="csharp"]
+```csharp
 
 public virtual ActionResult Callback()
 
 {
 
-            GitApiClient gitClient = new GitApiClient(&amp;quot;your-developer-api-key-goes-here&amp;quot;);
+            GitApiClient gitClient = new GitApiClient("your-developer-api-key-goes-here");
 
             GitAssertion assertion = gitClient.Verify();
 
-            string BaseSiteUrl = Request.Url.Scheme + &amp;quot;://&amp;quot; + Request.Url.Authority.TrimEnd('/');
+            string BaseSiteUrl = Request.Url.Scheme + "://" + Request.Url.Authority.TrimEnd("/");
 
             ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Home.Index());
 
@@ -182,7 +174,7 @@ public virtual ActionResult Callback()
 
                 var user = Membership.GetUser(assertion.VerifiedEmail);
 
-                Session[&amp;quot;GitAssertion&amp;quot;] = assertion;
+                Session["GitAssertion"] = assertion;
 
                 if (user == null)
 
@@ -206,7 +198,7 @@ public virtual ActionResult Callback()
 
                 {
 
-                    //you can decide how you want to manage the &amp;quot;remember me&amp;quot; boolean
+                    //you can decide how you want to manage the "remember me" boolean
 
                     FormsAuthentication.SetAuthCookie(user.UserName, true);
 
@@ -222,7 +214,7 @@ public virtual ActionResult Callback()
 
 }
 
-[/sourcecode]
+````
 
 Some things you might have noticed.
 
@@ -242,17 +234,17 @@ The GitAssertion class is just a POCO to strongly type the response back from th
 
 Here are the two classes that you should add to your solution.
 
-[sourcecode language="csharp"]
+````csharp
 
 public class GitApiClient
 
     {
 
-        public static string FederatedSuccess = &amp;quot;federatedSuccess&amp;quot;;
+        public static string FederatedSuccess = "federatedSuccess";
 
-        public static string FederatedError = &amp;quot;federatedError&amp;quot;;
+        public static string FederatedError = "federatedError";
 
-        private readonly string _verifyUrl = &amp;quot;https://www.googleapis.com/identitytoolkit/v1/relyingparty/verifyAssertion?key=&amp;quot;;
+        private readonly string _verifyUrl = "https://www.googleapis.com/identitytoolkit/v1/relyingparty/verifyAssertion?key=";
 
         private string _apiKey;
 
@@ -268,7 +260,7 @@ public class GitApiClient
 
         {
 
-            string result = &amp;quot;&amp;quot;;
+            string result = "";
 
             try
 
@@ -280,15 +272,15 @@ public class GitApiClient
 
                 HttpWebRequest gitWebRequest = WebRequest.Create(address) as HttpWebRequest;
 
-                gitWebRequest.Method = &amp;quot;POST&amp;quot;;
+                gitWebRequest.Method = "POST";
 
-                gitWebRequest.ContentType = &amp;quot;application/json&amp;quot;;
+                gitWebRequest.ContentType = "application/json";
 
                 StreamReader requestReader = new StreamReader(request.InputStream);
 
                 var requestBody = requestReader.ReadToEnd();
 
-                string myRequestUri = string.Format(&amp;quot;{0}://{1}{2}&amp;quot;,request.Url.Scheme,request.Url.Authority.TrimEnd('/'), request.RawUrl);
+                string myRequestUri = string.Format("{0}://{1}{2}",request.Url.Scheme,request.Url.Authority.TrimEnd("/"), request.RawUrl);
 
                 var verifyRequestData = new { requestUri = myRequestUri, postBody = requestBody };
 
@@ -320,7 +312,7 @@ public class GitApiClient
 
             {
 
-                throw new Exception(&amp;quot;An error occurred while verifying the IDP response&amp;quot;, web);
+                throw new Exception("An error occurred while verifying the IDP response", web);
 
             }
 
@@ -334,15 +326,14 @@ public class GitApiClient
 
             var result = GitVerifyPost();
 
-            return JsonConvert.DeserializeObject&amp;lt;GitAssertion&amp;gt;(result);
+            return JsonConvert.DeserializeObject<GitAssertion>(result);
 
         }
 
     }
 
-[/sourcecode]
-
-[sourcecode language="csharp"]
+````
+````csharp
 
 public class GitAssertion
 
@@ -372,8 +363,7 @@ public class GitAssertion
 
     }
 
-[/sourcecode]
-
+````
 ##### Step 5 - Returning the callback response to the GITKit
 
 Once GITKit has made the call to your callback action, you need to inform it of the outcome. Does the user already exist in your system? Do they need to be registered?
@@ -382,13 +372,12 @@ To do this, you need to respond back to GITKit by rendering some HTML that calls
 
 So create a view under the account folder called "Callback" containing the following html.
 
-[sourcecode language="html"]
+````html
+<html>
 
-&amp;lt;html&amp;gt;
+<head>
 
-&amp;lt;head&amp;gt;
-
-&amp;lt;script type='text/javascript'&amp;gt;
+<script type="text/javascript">
 
     function notify() {
 
@@ -400,37 +389,36 @@ So create a view under the account folder called "Callback" containing the follo
 
     }
 
-&amp;lt;/script&amp;gt;
+</script>
 
-&amp;lt;/head&amp;gt;
+</head>
 
-&amp;lt;body onload='notify();'&amp;gt;
+<body onload="notify();">
 
-&amp;lt;/body&amp;gt;
+</body>
 
-&amp;lt;/html&amp;gt;
+</html>
 
-[/sourcecode]
-
+````
 ##### Step 6 - Provide the user information to the GITKit widget
 
 Now that the user is authenticated we need to inform the widget of the user details and tell it to change modes and display the user information.
 
 In the _Layout.cshtml add the following piece of code to our script block **_after_** the $('#navbar').accountChooser(); call.
 
-[sourcecode language="csharp"]
+````aspx-cs
 
 @if (Request.IsAuthenticated)
 
         {
 
-            var user = Session[&amp;quot;GitAssertion&amp;quot;] as GitAssertion;
+            var user = Session["GitAssertion"] as GitAssertion;
 
             if(user != null)
 
             {
 
-            &amp;lt;text&amp;gt;
+            <text>
 
                 var userData = {
 
@@ -446,14 +434,13 @@ In the _Layout.cshtml add the following piece of code to our script block **_aft
 
                 window.google.identitytoolkit.showSavedAccount(userData.email);
 
-            &amp;lt;/text&amp;gt;
+            </text>
 
             }
 
         }
 
-[/sourcecode]
-
+````
 If you now test your solution and attempt to sign in, your IDP should prompt you for your details, the GITKit will then verify, your callback will fire, the popup window will close and your GITKit widget should be updated with the display name and user image.
 
 That is unless you and me both have missed a key section or made a typo somewhere.
@@ -468,14 +455,12 @@ You may have noticed that your page content overlaps this menu.
 
 To fix this, add the following CSS hack (if anyone has a cleaner solution please let me know)
 
-[sourcecode language="css"]
-
+````css
 ol.widget-navbar-menu { position:absolute;}
 
 li.widget-navbar-menuitem {display:list-item; position:relative;z-index: 9999;}
 
-[/sourcecode]
-
+````
 Now you should be able to see the full menu.
 
 Selecting "Switch account" will bring up the widget with all the user details that are currently stored in
@@ -502,8 +487,7 @@ A proper implementation really needs to be storing these user details (display n
 
 Anyway....
 
-[sourcecode language="csharp"]
-
+````csharp
 public virtual JsonResult userStatus(string email)
 
 {
@@ -522,7 +506,7 @@ public virtual JsonResult userStatus(string email)
 
          var authUser = Membership.GetUser(userName);
 
-         var user = new { displayName = authUser.UserName, photoUrl = &amp;quot;&amp;quot;, registered = true, legacy = false };
+         var user = new { displayName = authUser.UserName, photoUrl = "", registered = true, legacy = false };
 
           return Json(user);
 
@@ -532,7 +516,7 @@ public virtual JsonResult userStatus(string email)
 
      {
 
-          var user = new { displayName = &amp;quot;&amp;quot;, photoUrl = &amp;quot;&amp;quot;, registered = false, legacy = false };
+          var user = new { displayName = "", photoUrl = "", registered = false, legacy = false };
 
           return Json(user);
 
@@ -540,16 +524,14 @@ public virtual JsonResult userStatus(string email)
 
 }
 
-[/sourcecode]
-
+````
 ##### Step 9 - Handle those non federated users
 
 Since this example is updating the GITKit user details from session, we need to make sure that session is appropriately populated when the user is authenticated.
 
 In the default MVC3 project template scenario this means we need to slightly modify our Register POST Action to something like this
 
-[sourcecode language="csharp"]
-
+````csharp
  [HttpPost]
 
 public virtual ActionResult Register(RegisterModel model)
@@ -570,11 +552,11 @@ public virtual ActionResult Register(RegisterModel model)
 
          {
 
-              Session[&amp;quot;GitAssertion&amp;quot;] = new GitAssertion() { VerifiedEmail = model.Email, FirstName = model.UserName };
+              Session["GitAssertion"] = new GitAssertion() { VerifiedEmail = model.Email, FirstName = model.UserName };
 
               FormsAuthentication.SetAuthCookie(model.UserName, false /* createPersistentCookie */);
 
-              return RedirectToAction(&amp;quot;Index&amp;quot;, &amp;quot;Home&amp;quot;);
+              return RedirectToAction("Index", "Home");
 
           }
 
@@ -582,7 +564,7 @@ public virtual ActionResult Register(RegisterModel model)
 
           {
 
-                ModelState.AddModelError(&amp;quot;&amp;quot;, ErrorCodeToString(createStatus));
+                ModelState.AddModelError("", ErrorCodeToString(createStatus));
 
            }
 
@@ -594,8 +576,7 @@ public virtual ActionResult Register(RegisterModel model)
 
 }
 
-[/sourcecode]
-
+````
 Now when a non federated account attempts to logon, the GITKit will send to your logon Url the users email and the provided password.
 
 This is done via a AJAX request and we need to return a JSON response back to the GITKit with the logon result.
@@ -604,13 +585,12 @@ To use the existing LogOn Post action method we need to make some more subtle ch
 
 GITKit only gives us an email address and password, so we need to add the email property to our LogOnModel
 
-[sourcecode language="csharp"]
-
+````csharp
   public class LogOnModel
 
     {
 
-        [Display(Name = &amp;quot;User name&amp;quot;)]
+        [Display(Name = "User name")]
 
         public string UserName { get; set; }
 
@@ -618,11 +598,11 @@ GITKit only gives us an email address and password, so we need to add the email 
 
         [DataType(DataType.Password)]
 
-        [Display(Name = &amp;quot;Password&amp;quot;)]
+        [Display(Name = "Password")]
 
         public string Password { get; set; }
 
-        [Display(Name = &amp;quot;Remember me?&amp;quot;)]
+        [Display(Name = "Remember me?")]
 
         public bool RememberMe { get; set; }
 
@@ -630,9 +610,8 @@ GITKit only gives us an email address and password, so we need to add the email 
 
     }
 
-[/sourcecode] 
-
-Now we need to update our LogOn action method. For simplicity I've chosen to keep the existing UserName logic.
+````
+Now we need to update our LogOn action method. For simplicity I"ve chosen to keep the existing UserName logic.
 
 To account for this though, if the username has not been provided I query the Membership provider with the supplied email address.
 
@@ -644,8 +623,7 @@ Once the user has been authenticated, I again set the GitAssertion into session 
 
 Here is the LogOn action method.
 
-[sourcecode language="csharp"]
-
+````csharp
 [HttpPost]
 
 public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
@@ -656,7 +634,7 @@ public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
 
     {
 
-         ModelState.AddModelError(&amp;quot;username&amp;quot;, &amp;quot;username or email is required&amp;quot;);
+         ModelState.AddModelError("username", "username or email is required");
 
      }
 
@@ -678,7 +656,7 @@ public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
 
                var user = Membership.GetUser(model.UserName);
 
-               Session[&amp;quot;GitAssertion&amp;quot;] = new GitAssertion() { VerifiedEmail = user.Email,
+               Session["GitAssertion"] = new GitAssertion() { VerifiedEmail = user.Email,
 
                                                               FirstName = model.UserName };
 
@@ -688,13 +666,13 @@ public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
 
                {
 
-                   return Json(new { status = &amp;quot;ok&amp;quot;, displayName = user.UserName, photoUrl = &amp;quot;&amp;quot; });
+                   return Json(new { status = "ok", displayName = user.UserName, photoUrl = "" });
 
                }
 
-               if (Url.IsLocalUrl(returnUrl) &amp;amp;&amp;amp; returnUrl.Length &amp;gt; 1 &amp;amp;&amp;amp; returnUrl.StartsWith(&amp;quot;/&amp;quot;)
+               if (Url.IsLocalUrl(returnUrl) & returnUrl.Length > 1 & returnUrl.StartsWith("/")
 
-                   &amp;amp;&amp;amp; !returnUrl.StartsWith(&amp;quot;//&amp;quot;) &amp;amp;&amp;amp; !returnUrl.StartsWith(&amp;quot;/\\&amp;quot;))
+                   & !returnUrl.StartsWith("//") & !returnUrl.StartsWith("/\\"))
 
                {
 
@@ -706,7 +684,7 @@ public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
 
                 {
 
-                    return RedirectToAction(&amp;quot;Index&amp;quot;, &amp;quot;Home&amp;quot;);
+                    return RedirectToAction("Index", "Home");
 
                 }
 
@@ -716,7 +694,7 @@ public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
 
             {
 
-                 ModelState.AddModelError(&amp;quot;&amp;quot;, &amp;quot;The user name or password provided is incorrect.&amp;quot;);
+                 ModelState.AddModelError("", "The user name or password provided is incorrect.");
 
             }
 
@@ -728,8 +706,7 @@ public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
 
 }
 
-[/sourcecode] 
-
+````
 You should now be able to compile and test federated and legacy accounts.
 
 Supplying "test@test.com" to the account chooser widget should redirect you to the default Register page.
