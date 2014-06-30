@@ -1,8 +1,6 @@
 ---
 layout: post
 title: Google Identity toolkit & ASP.NET MVC3
-categories:
-- Software Development
 tags:
 - C#
 - Google Identity Kit
@@ -64,59 +62,35 @@ Add these script blocks to your page. The GITKit doco says to add to the HEAD bl
 {% highlight html %}
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js"></script>
-
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/googleapis/0.0.4/googleapis.min.js"></script>
-
 <script type="text/javascript" src="https://ajax.googleapis.com/jsapi"></script>
-
 <script type="text/javascript">
+google.load('identitytoolkit', '1.0', { packages: ['ac'] });
 
-    google.load('identitytoolkit', '1.0', { packages: ['ac'] });
+$(function () {
 
+   window.google.identitytoolkit.setConfig({
+     developerKey: 'your dev api key goes here',
+     companyName: 'Your company',
+     callbackUrl: '@string.Format('https://yoursite.com{0}',Url.Action('Callback','Account'))',
+     userStatusUrl: '@Url.Action('UserStatus','Account')', // these can just be partial paths
+     loginUrl: '@Url.Action('LogOn','Account')',
+     signupUrl: '@Url.Action('Register','Account')',
+     homeUrl: '@Url.Action('Index','Home')',
+     logoutUrl: '@Url.Action('LogOff','Account')',
+     realm: '', // optional
+     language: 'en',
+     idps: ['Gmail', 'AOL', 'Hotmail', 'Yahoo'],
+     tryFederatedFirst: true,
+     useCachedUserStatus: false
+    });
 
-  $(function () {
-
-     window.google.identitytoolkit.setConfig({
-
-       developerKey: 'your dev api key goes here',
-
-       companyName: 'Your company',
-
-       callbackUrl: '@string.Format('https://yoursite.com{0}',Url.Action('Callback','Account'))',
-
-       userStatusUrl: '@Url.Action('UserStatus','Account')', // these can just be partial paths
-
-       loginUrl: '@Url.Action('LogOn','Account')',
-
-       signupUrl: '@Url.Action('Register','Account')',
-
-       homeUrl: '@Url.Action('Index','Home')',
-
-       logoutUrl: '@Url.Action('LogOff','Account')',
-
-       realm: '', // optional
-
-       language: 'en',
-
-       idps: ['Gmail', 'AOL', 'Hotmail', 'Yahoo'],
-
-       tryFederatedFirst: true,
-
-       useCachedUserStatus: false
-
-      });
-
-      $('#navbar').accountChooser();
-
-  });
-
+    $('#navbar').accountChooser();
+});
 </script>
 
-
 {% endhighlight %}
-
 
 *   Any version >= jquery 1.4.2 can be used
 *   Any version >= jquery-ui 1.8.2 can be used
@@ -129,9 +103,7 @@ Replace the existing markup with
 ````aspx-cs
 
 @if(Request.IsAuthenticated) {
-
-    <text>Welcome</text>
-
+  <text>Welcome</text>
 }
 
 <div id="navbar"></div>
@@ -155,63 +127,42 @@ Here is my example callback action
 ```csharp
 
 public virtual ActionResult Callback()
-
 {
+  GitApiClient gitClient = new GitApiClient("your-developer-api-key-goes-here");
+  GitAssertion assertion = gitClient.Verify();
 
-            GitApiClient gitClient = new GitApiClient("your-developer-api-key-goes-here");
+  string BaseSiteUrl = Request.Url.Scheme + "://" + Request.Url.Authority.TrimEnd("/");
+  ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Home.Index());
+  ViewBag.FederatedResponse = GitApiClient.FederatedError;
 
-            GitAssertion assertion = gitClient.Verify();
+  if (!string.IsNullOrEmpty(assertion.VerifiedEmail))
+  {
 
-            string BaseSiteUrl = Request.Url.Scheme + "://" + Request.Url.Authority.TrimEnd("/");
+    var user = Membership.GetUser(assertion.VerifiedEmail);
+    Session["GitAssertion"] = assertion;
 
-            ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Home.Index());
+    if (user == null)
+    {
 
-            ViewBag.FederatedResponse = GitApiClient.FederatedError;
+      //create the new user
+       var newUser = Membership.CreateUser(assertion.VerifiedEmail, Guid.NewGuid().ToString());
+       FormsAuthentication.SetAuthCookie(newUser.UserName, true);
 
-            if (!string.IsNullOrEmpty(assertion.VerifiedEmail))
+    //if you wanted to collect more details before creating the user account,
+    // then specify the location of that page.
+    // ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Account.FederatedRegister());
+    }
+    else
+    {
+      //you can decide how you want to manage the "remember me" boolean
+      FormsAuthentication.SetAuthCookie(user.UserName, true);
+    }
 
-            {
+    ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Home.Index());
+    ViewBag.FederatedResponse = GitApiClient.FederatedSuccess;
+  }
 
-                var user = Membership.GetUser(assertion.VerifiedEmail);
-
-                Session["GitAssertion"] = assertion;
-
-                if (user == null)
-
-                {
-
-                    //create the new user
-
-                   var newUser = Membership.CreateUser(assertion.VerifiedEmail, Guid.NewGuid().ToString());
-
-                   FormsAuthentication.SetAuthCookie(newUser.UserName, true);
-
-                    //if you wanted to collect more details before creating the user account,
-
-                    // then specify the location of that page.
-
-                   // ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Account.FederatedRegister());
-
-                }
-
-                else
-
-                {
-
-                    //you can decide how you want to manage the "remember me" boolean
-
-                    FormsAuthentication.SetAuthCookie(user.UserName, true);
-
-                }
-
-                ViewBag.GitRedirectUrl = BaseSiteUrl + Url.Action(MVC.Home.Index());
-
-                ViewBag.FederatedResponse = GitApiClient.FederatedSuccess;
-
-            }
-
-            return View();
-
+  return View();
 }
 
 ````
@@ -237,131 +188,76 @@ Here are the two classes that you should add to your solution.
 ````csharp
 
 public class GitApiClient
+{
+  public static string FederatedSuccess = "federatedSuccess";
+  public static string FederatedError = "federatedError";
+  private readonly string _verifyUrl = "https://www.googleapis.com/identitytoolkit/v1/relyingparty/verifyAssertion?key=";
+  private string _apiKey;
+  public GitApiClient(string apiKey)
+  {
+      _apiKey = apiKey;
+  }
 
-    {
+  private string GitVerifyPost()
+  {
+      string result = "";
+      try
+      {
+          Uri address = new Uri(_verifyUrl + _apiKey);
+          HttpRequest request = HttpContext.Current.Request;
+          HttpWebRequest gitWebRequest = WebRequest.Create(address) as HttpWebRequest;
+          gitWebRequest.Method = "POST";
+          gitWebRequest.ContentType = "application/json";
+          StreamReader requestReader = new StreamReader(request.InputStream);
+          var requestBody = requestReader.ReadToEnd();
+          string myRequestUri = string.Format("{0}://{1}{2}",request.Url.Scheme,request.Url.Authority.TrimEnd("/"), request.RawUrl);
+          var verifyRequestData = new { requestUri = myRequestUri, postBody = requestBody };
+          byte[] gitRequestData = UTF8Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(verifyRequestData));
 
-        public static string FederatedSuccess = "federatedSuccess";
+          using (Stream stream = gitWebRequest.GetRequestStream())
+          {
+              stream.Write(gitRequestData, 0, gitRequestData.Length);
+          }
 
-        public static string FederatedError = "federatedError";
+          using (HttpWebResponse response = gitWebRequest.GetResponse() as HttpWebResponse)
+          {
+              // Get the response stream
+              StreamReader responseReader = new StreamReader(response.GetResponseStream());
+              result = responseReader.ReadToEnd();
+          }
+      }
+      catch (WebException web)
+      {
+          throw new Exception("An error occurred while verifying the IDP response", web);
+      }
+      return result;
+  }
 
-        private readonly string _verifyUrl = "https://www.googleapis.com/identitytoolkit/v1/relyingparty/verifyAssertion?key=";
+  public GitAssertion Verify()
+  {
+      var result = GitVerifyPost();
+      return JsonConvert.DeserializeObject<GitAssertion>(result);
+  }
 
-        private string _apiKey;
-
-        public GitApiClient(string apiKey)
-
-        {
-
-            _apiKey = apiKey;
-
-        }
-
-        private string GitVerifyPost()
-
-        {
-
-            string result = "";
-
-            try
-
-            {
-
-                Uri address = new Uri(_verifyUrl + _apiKey);
-
-                HttpRequest request = HttpContext.Current.Request;
-
-                HttpWebRequest gitWebRequest = WebRequest.Create(address) as HttpWebRequest;
-
-                gitWebRequest.Method = "POST";
-
-                gitWebRequest.ContentType = "application/json";
-
-                StreamReader requestReader = new StreamReader(request.InputStream);
-
-                var requestBody = requestReader.ReadToEnd();
-
-                string myRequestUri = string.Format("{0}://{1}{2}",request.Url.Scheme,request.Url.Authority.TrimEnd("/"), request.RawUrl);
-
-                var verifyRequestData = new { requestUri = myRequestUri, postBody = requestBody };
-
-                byte[] gitRequestData = UTF8Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(verifyRequestData));
-
-                using (Stream stream = gitWebRequest.GetRequestStream())
-
-                {
-
-                    stream.Write(gitRequestData, 0, gitRequestData.Length);
-
-                }
-
-                using (HttpWebResponse response = gitWebRequest.GetResponse() as HttpWebResponse)
-
-                {
-
-                    // Get the response stream
-
-                    StreamReader responseReader = new StreamReader(response.GetResponseStream());
-
-                    result = responseReader.ReadToEnd();
-
-                }
-
-            }
-
-            catch (WebException web)
-
-            {
-
-                throw new Exception("An error occurred while verifying the IDP response", web);
-
-            }
-
-            return result;
-
-        }
-
-        public GitAssertion Verify()
-
-        {
-
-            var result = GitVerifyPost();
-
-            return JsonConvert.DeserializeObject<GitAssertion>(result);
-
-        }
-
-    }
+}
 
 ````
 ````csharp
 
 public class GitAssertion
-
-    {
-
-        public string Kind { get; set; }
-
-        public string Identifier { get; set; }
-
-        public string Authority { get; set; }
-
-        public string VerifiedEmail { get; set; }
-
-        public string FirstName { get; set; }
-
-        public string LastName { get; set; }
-
-        public string FullName { get; set; }
-
-        public string NickName { get; set; }
-
-        public string Language { get; set; }
-
-        public string TimeZone { get; set; }
-
-        public string ProfilePicture { get; set; }
-
-    }
+{
+  public string Kind { get; set; }
+  public string Identifier { get; set; }
+  public string Authority { get; set; }
+  public string VerifiedEmail { get; set; }
+  public string FirstName { get; set; }
+  public string LastName { get; set; }
+  public string FullName { get; set; }
+  public string NickName { get; set; }
+  public string Language { get; set; }
+  public string TimeZone { get; set; }
+  public string ProfilePicture { get; set; }
+}
 
 ````
 ##### Step 5 - Returning the callback response to the GITKit
@@ -374,29 +270,17 @@ So create a view under the account folder called "Callback" containing the follo
 
 ````html
 <html>
-
 <head>
-
 <script type="text/javascript">
-
-    function notify() {
-
-       window.opener.google.identitytoolkit.easyrp.util.notifyWidget('@ViewBag.FederatedResponse');
-
-       window.opener.location.href = '@ViewBag.GitRedirectUrl';
-
-       window.close();
-
-    }
-
+function notify() {
+   window.opener.google.identitytoolkit.easyrp.util.notifyWidget('@ViewBag.FederatedResponse');
+   window.opener.location.href = '@ViewBag.GitRedirectUrl';
+   window.close();
+}
 </script>
-
 </head>
-
 <body onload="notify();">
-
 </body>
-
 </html>
 
 ````
@@ -409,36 +293,22 @@ In the _Layout.cshtml add the following piece of code to our script block **_aft
 ````aspx-cs
 
 @if (Request.IsAuthenticated)
+{
+  var user = Session["GitAssertion"] as GitAssertion;
+  if(user != null)
+  {
+  <text>
+      var userData = {
+        email: '@user.VerifiedEmail', // required
+        displayName: '@user.FirstName', // optional
+        photoUrl: 'https://account-chooser.appspot.com/image/nophoto.png', // optional
+      };
 
-        {
-
-            var user = Session["GitAssertion"] as GitAssertion;
-
-            if(user != null)
-
-            {
-
-            <text>
-
-                var userData = {
-
-                    email: '@user.VerifiedEmail', // required
-
-                    displayName: '@user.FirstName', // optional
-
-                    photoUrl: 'https://account-chooser.appspot.com/image/nophoto.png', // optional
-
-                };
-
-                window.google.identitytoolkit.updateSavedAccount(userData);
-
-                window.google.identitytoolkit.showSavedAccount(userData.email);
-
-            </text>
-
-            }
-
-        }
+      window.google.identitytoolkit.updateSavedAccount(userData);
+      window.google.identitytoolkit.showSavedAccount(userData.email);
+  </text>
+  }
+}
 
 ````
 If you now test your solution and attempt to sign in, your IDP should prompt you for your details, the GITKit will then verify, your callback will fire, the popup window will close and your GITKit widget should be updated with the display name and user image.
@@ -463,9 +333,7 @@ li.widget-navbar-menuitem {display:list-item; position:relative;z-index: 9999;}
 ````
 Now you should be able to see the full menu.
 
-Selecting "Switch account" will bring up the widget with all the user details that are currently stored in
-
-localstorage.
+Selecting "Switch account" will bring up the widget with all the user details that are currently stored in localstorage.
 
 Choosing a different account will fire a AJAX request to the specified UserStatus url in the widget configuration.
 
@@ -489,39 +357,24 @@ Anyway....
 
 ````csharp
 public virtual JsonResult userStatus(string email)
-
 {
+  string userName = Membership.GetUserNameByEmail(email);
 
-    string userName = Membership.GetUserNameByEmail(email);
+  //if the user was switching accounts we need make sure we log out the previous user.
+  Session.Abandon();
+  FormsAuthentication.SignOut();
 
-    //if the user was switching accounts we need make sure we log out the previous user.
-
-    Session.Abandon();
-
-    FormsAuthentication.SignOut();
-
-    if (userName != null)
-
-    {
-
-         var authUser = Membership.GetUser(userName);
-
-         var user = new { displayName = authUser.UserName, photoUrl = "", registered = true, legacy = false };
-
-          return Json(user);
-
-     }
-
-     else
-
-     {
-
-          var user = new { displayName = "", photoUrl = "", registered = false, legacy = false };
-
-          return Json(user);
-
-      }
-
+  if (userName != null)
+  {
+    var authUser = Membership.GetUser(userName);
+    var user = new { displayName = authUser.UserName, photoUrl = "", registered = true, legacy = false };
+    return Json(user);
+   }
+   else
+   {
+      var user = new { displayName = "", photoUrl = "", registered = false, legacy = false };
+      return Json(user);
+    }
 }
 
 ````
@@ -532,47 +385,29 @@ Since this example is updating the GITKit user details from session, we need to 
 In the default MVC3 project template scenario this means we need to slightly modify our Register POST Action to something like this
 
 ````csharp
- [HttpPost]
-
+[HttpPost]
 public virtual ActionResult Register(RegisterModel model)
-
 {
+  if (ModelState.IsValid)
+  {
+     // Attempt to register the user
+     MembershipCreateStatus createStatus;
+     Membership.CreateUser(model.UserName, model.Password, model.Email, null, null, true, null, out createStatus);
 
-    if (ModelState.IsValid)
+     if (createStatus == MembershipCreateStatus.Success)
+     {
+          Session["GitAssertion"] = new GitAssertion() { VerifiedEmail = model.Email, FirstName = model.UserName };
+          FormsAuthentication.SetAuthCookie(model.UserName, false /* createPersistentCookie */);
+          return RedirectToAction("Index", "Home");
+      }
+      else
+      {
+            ModelState.AddModelError("", ErrorCodeToString(createStatus));
+      }
+   }
 
-    {
-
-         // Attempt to register the user
-
-         MembershipCreateStatus createStatus;
-
-         Membership.CreateUser(model.UserName, model.Password, model.Email, null, null, true, null, out createStatus);
-
-         if (createStatus == MembershipCreateStatus.Success)
-
-         {
-
-              Session["GitAssertion"] = new GitAssertion() { VerifiedEmail = model.Email, FirstName = model.UserName };
-
-              FormsAuthentication.SetAuthCookie(model.UserName, false /* createPersistentCookie */);
-
-              return RedirectToAction("Index", "Home");
-
-          }
-
-          else
-
-          {
-
-                ModelState.AddModelError("", ErrorCodeToString(createStatus));
-
-           }
-
-     }
-
-     // If we got this far, something failed, redisplay form
-
-     return View(model);
+   // If we got this far, something failed, redisplay form
+    return View(model);
 
 }
 
@@ -586,29 +421,20 @@ To use the existing LogOn Post action method we need to make some more subtle ch
 GITKit only gives us an email address and password, so we need to add the email property to our LogOnModel
 
 ````csharp
-  public class LogOnModel
+public class LogOnModel
+{
+  [Display(Name = "User name")]
+  public string UserName { get; set; }
 
-    {
+  [Required]
+  [DataType(DataType.Password)]
+  [Display(Name = "Password")]
+  public string Password { get; set; }
 
-        [Display(Name = "User name")]
-
-        public string UserName { get; set; }
-
-        [Required]
-
-        [DataType(DataType.Password)]
-
-        [Display(Name = "Password")]
-
-        public string Password { get; set; }
-
-        [Display(Name = "Remember me?")]
-
-        public bool RememberMe { get; set; }
-
-        public string Email { get; set; }
-
-    }
+  [Display(Name = "Remember me?")]
+  public bool RememberMe { get; set; }
+  public string Email { get; set; }
+}
 
 ````
 Now we need to update our LogOn action method. For simplicity I"ve chosen to keep the existing UserName logic.
@@ -627,82 +453,46 @@ Here is the LogOn action method.
 [HttpPost]
 
 public virtual ActionResult LogOn(LogOnModel model, string returnUrl)
-
 {
+  if (model.UserName == string.Empty &amp;amp;&amp;amp; model.Email == string.Empty)
+  {
+     ModelState.AddModelError("username", "username or email is required");
+   }
+   else if (string.IsNullOrEmpty(model.UserName))
+   {
+      model.UserName = Membership.GetUserNameByEmail(model.Email);
+   }
 
-    if (model.UserName == string.Empty &amp;amp;&amp;amp; model.Email == string.Empty)
+   if (ModelState.IsValid)
+   {
+      if (Membership.ValidateUser(model.UserName, model.Password))
+      {
+         var user = Membership.GetUser(model.UserName);
+         Session["GitAssertion"] = new GitAssertion() { VerifiedEmail = user.Email,
+                                                        FirstName = model.UserName };
+         FormsAuthentication.SetAuthCookie(model.UserName, model.RememberMe);
+         if (Request.IsAjaxRequest())
+         {
+             return Json(new { status = "ok", displayName = user.UserName, photoUrl = "" });
+         }
 
-    {
-
-         ModelState.AddModelError("username", "username or email is required");
-
-     }
-
-     else if (string.IsNullOrEmpty(model.UserName))
-
-     {
-
-          model.UserName = Membership.GetUserNameByEmail(model.Email);
-
-     }
-
-     if (ModelState.IsValid)
-
-     {
-
-           if (Membership.ValidateUser(model.UserName, model.Password))
-
-           {
-
-               var user = Membership.GetUser(model.UserName);
-
-               Session["GitAssertion"] = new GitAssertion() { VerifiedEmail = user.Email,
-
-                                                              FirstName = model.UserName };
-
-               FormsAuthentication.SetAuthCookie(model.UserName, model.RememberMe);
-
-               if (Request.IsAjaxRequest())
-
-               {
-
-                   return Json(new { status = "ok", displayName = user.UserName, photoUrl = "" });
-
-               }
-
-               if (Url.IsLocalUrl(returnUrl) & returnUrl.Length > 1 & returnUrl.StartsWith("/")
-
-                   & !returnUrl.StartsWith("//") & !returnUrl.StartsWith("/\\"))
-
-               {
-
-                    return Redirect(returnUrl);
-
-                }
-
-                else
-
-                {
-
-                    return RedirectToAction("Index", "Home");
-
-                }
-
-            }
-
-            else
-
-            {
-
-                 ModelState.AddModelError("", "The user name or password provided is incorrect.");
-
-            }
-
-       }
-
-       // If we got this far, something failed, redisplay form
-
-       return View(model);
+         if (Url.IsLocalUrl(returnUrl) & returnUrl.Length > 1 & returnUrl.StartsWith("/")
+             & !returnUrl.StartsWith("//") & !returnUrl.StartsWith("/\\"))
+         {
+              return Redirect(returnUrl);
+          }
+          else
+          {
+              return RedirectToAction("Index", "Home");
+          }
+      }
+      else
+      {
+           ModelState.AddModelError("", "The user name or password provided is incorrect.");
+      }
+   }
+     // If we got this far, something failed, redisplay form
+     return View(model);
 
 }
 
