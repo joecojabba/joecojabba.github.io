@@ -15,15 +15,14 @@ The [national multicultural festival](http://www.multiculturalfestival.com.au/) 
 
 ## tl;dr
 
-1.  I <3 festival especially the food :)
-2.  Played around with a new build / tech stack
+1. I <3 festival especially the food :)
+2. Played around with a new build / tech stack
+  * [jQuery 2.0 beta](http://blog.jquery.com/2013/01/15/jquery-1-9-final-jquery-2-0-beta-migrate-final-released/)
+  * [jQuery Mobile 1.3rc1](http://jquerymobile.com/) with [backbone.js](http://backbonejs.org/)
+  * [yeoman.io](yeoman.io)
+  * REST implementation on [ASP.NET Web API](http://www.asp.net/web-api/overview/getting-started-with-aspnet-web-api)
 
-    *   [jQuery 2.0 beta](http://blog.jquery.com/2013/01/15/jquery-1-9-final-jquery-2-0-beta-migrate-final-released/)
-    *   [jQuery Mobile 1.3rc1](http://jquerymobile.com/) with [backbone.js](http://backbonejs.org/)
-    *   [yeoman.io](yeoman.io)
-    *   REST implementation on [ASP.NET Web API](http://www.asp.net/web-api/overview/getting-started-with-aspnet-web-api)
-
-3.  HTML5: Given the network congestion, perhaps native would be a better choice?
+3. HTML5: Given the network congestion, perhaps native would be a better choice?
 
 ## Anyway, some boring background...
 
